@@ -1,5 +1,5 @@
 from http import HTTPStatus
-
+from sqlalchemy import engine
 from fastapi import FastAPI, HTTPException
 
 from fastapi_zero.schemas import (
@@ -26,10 +26,7 @@ def read_root():
     response_model=UserPublic,
 )
 def create_user(user: UserSchema):
-    user_with_id = UserDB(**user.model_dump(), id=len(database) + 1)
-    database.append(user_with_id)
-    return user_with_id
-
+    engine = 
 
 @app.get(
     '/users/', status_code=HTTPStatus.OK, response_model=UserList
