@@ -23,6 +23,52 @@ def test_create_user(client):
     assert response.status_code == HTTPStatus.CREATED
 
 
+def test_create_user_username_already_registered(client):
+    response1 = client.post(
+        '/users/',
+        json={
+            'username': 'alice',
+            'email': 'alice1@example.com',
+            'password': 'secret',
+        },
+    )
+    assert response1.status_code == HTTPStatus.CREATED
+
+    response2 = client.post(
+        '/users/',
+        json={
+            'username': 'alice',
+            'email': 'alice2@example.com',
+            'password': 'secret',
+        },
+    )
+    assert response2.status_code == HTTPStatus.CONFLICT
+    assert 'username' in response2.json()['detail'].lower()
+
+
+def test_create_user_email_already_registered(client):
+    response1 = client.post(
+        '/users/',
+        json={
+            'username': 'lucas',
+            'email': 'lucas@example.com',
+            'password': 'secret',
+        },
+    )
+    assert response1.status_code == HTTPStatus.CREATED
+
+    response2 = client.post(
+        '/users/',
+        json={
+            'username': 'lucas1',
+            'email': 'lucas@example.com',
+            'password': 'secret',
+        },
+    )
+    assert response2.status_code == HTTPStatus.CONFLICT
+    assert 'email' in response2.json()['detail'].lower()
+
+
 def test_read_user(client):
     response = client.get('/users/')
 
@@ -84,29 +130,15 @@ def test_delete_not_found(client):
     assert response.json() == {'detail': 'Não encontrado'}
 
 
-def test_read_user_by_id(client):
-    # Primeiro, cria o usuário
-    client.post(
-        '/users/',
-        json={
-            'username': 'alice',
-            'email': 'alice@example.com',
-            'password': 'secret',
-        },
-    )
-
-    # Agora, busca o usuário com ID 1
-    response = client.get('/users/1')
+def test_read_user_by_id(client, user):
+    user_schema = UserPublic.model_validate(user).model_dump()
+    response = client.get('/users/{}'.format(user.id))
 
     assert response.status_code == HTTPStatus.OK
-    assert response.json() == {
-        'id': 1,
-        'email': 'alice@example.com',
-        'username': 'alice',
-    }
+    assert response.json() == user_schema
 
 
-def test_get_by_id_not_found(client):
+def test_read_user_by_id_not_found(client):
     response = client.get('/users/999')
 
     assert response.status_code == HTTPStatus.NOT_FOUND
