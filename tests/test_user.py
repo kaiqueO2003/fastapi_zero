@@ -122,9 +122,9 @@ def test_delete_user(client, user, token):
     assert response.json() == {'message': 'user delete'}
 
 
-def test_update_not_found(client, token):
+def test_update_not_found(client, token, other_user):
     response = client.put(
-        '/users/999',
+        f'/users/{other_user.id}',
         headers={'Authorization': f'Bearer {token}'},
         json={
             'username': 'aa',
@@ -137,9 +137,9 @@ def test_update_not_found(client, token):
     assert response.json() == {'detail': 'Sem permissão'}
 
 
-def test_delete_not_found(client, token):
+def test_delete_not_found(client, token, other_user):
     response = client.delete(
-        '/users/999',
+        f'/users/{other_user.id}',
         headers={'Authorization': f'Bearer {token}'},
     )
 
@@ -147,16 +147,22 @@ def test_delete_not_found(client, token):
     assert response.json() == {'detail': 'Sem permissão'}
 
 
-def test_read_user_by_id(client, user):
+def test_read_user_by_id(client, user, token):
     user_schema = UserPublic.model_validate(user).model_dump()
-    response = client.get('/users/{}'.format(user.id))
+    response = client.get(
+        f'/users/{user.id}',
+        headers={'Authorization': f'Bearer {token}'},
+    )
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == user_schema
 
 
-def test_read_user_by_id_not_found(client):
-    response = client.get('/users/999')
+def test_read_user_by_id_not_found(client, other_user, token):
+    response = client.get(
+        f'/users/{other_user.id}',
+        headers={'Authorization': f'Bearer {token}'},
+    )
 
-    assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'Não encontrado'}
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.json() == {'detail': 'Sem permissão'}

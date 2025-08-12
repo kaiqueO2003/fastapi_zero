@@ -121,9 +121,17 @@ def create_user(user: UserSchema, session: T_Session):
     status_code=HTTPStatus.OK,
     response_model=UserPublic,
 )
-def read_user_by_id(user_id: int, session: T_Session):
-    user_db = session.scalar(select(User).where(User.id == user_id))
+def read_user_by_id(
+    user_id: int,
+    session: T_Session,
+    current_user: CurrentUser,  # Adiciona autenticação
+):
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN, detail='Sem permissão'
+        )
 
+    user_db = session.scalar(select(User).where(User.id == user_id))
     if not user_db:
         raise HTTPException(
             detail='Não encontrado', status_code=HTTPStatus.NOT_FOUND

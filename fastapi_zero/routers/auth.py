@@ -8,7 +8,11 @@ from sqlalchemy.orm import Session
 from fastapi_zero.database import get_session
 from fastapi_zero.models import User
 from fastapi_zero.schemas import Token
-from fastapi_zero.security import create_acess_token, verify_password
+from fastapi_zero.security import (
+    create_acess_token,
+    get_current_user,
+    verify_password,
+)
 
 router = APIRouter(prefix=('/auth'), tags=['auth'])
 T_Session = Annotated[Session, Depends(get_session)]
@@ -34,3 +38,12 @@ def login_for_acess_token(
     acess_token = create_acess_token(data={'sub': user.email})
 
     return {'acess_token': acess_token, 'token_type': 'Bearer'}
+
+
+@router.post('/refresh_token', response_model=Token)
+def refresh_acess_token(
+    user: User = Depends(get_current_user),
+):
+    new_acess_token = create_acess_token(data={'sub': user.email})
+
+    return {'acess_token': new_acess_token, 'token_type': 'Bearer'}
