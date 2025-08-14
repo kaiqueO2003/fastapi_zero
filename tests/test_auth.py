@@ -14,7 +14,7 @@ def teste_get_token(client, user):
     token = response.json()
     assert response.status_code == HTTPStatus.OK
     assert token['token_type'] == 'Bearer'
-    assert 'acess_token' in token
+    assert 'access_token' in token
 
 
 def test_token_expired_after_time(client, user):
@@ -27,7 +27,7 @@ def test_token_expired_after_time(client, user):
             },
         )
         assert response.status_code == HTTPStatus.OK
-        token = response.json()['acess_token']
+        token = response.json()['access_token']
 
     with freeze_time('2023-07-14 12:31:00'):
         response = client.put(
@@ -54,7 +54,7 @@ def test_refresh_token(client, user, token):
     data = response.json()
 
     assert response.status_code == HTTPStatus.OK
-    assert 'acess_token' in data
+    assert 'access_token' in data
     assert 'token_type' in data
     assert data['token_type'] == 'Bearer'
 
@@ -69,7 +69,7 @@ def test_token_expired_dont_refresh(client, user):
             },
         )
         assert response.status_code == HTTPStatus.OK
-        token = response.json()['acess_token']
+        token = response.json()['access_token']
 
     with freeze_time('2023-07-14 12:31:00'):
         response = client.post(

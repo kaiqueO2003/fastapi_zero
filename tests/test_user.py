@@ -1,7 +1,7 @@
 from http import HTTPStatus
 
 from fastapi_zero.schemas import UserPublic
-from fastapi_zero.security import create_acess_token
+from fastapi_zero.security import create_access_token
 
 
 def test_create_user(client):
@@ -64,7 +64,7 @@ def test_create_user_email_already_registered(client):
 
 
 def test_jwt_valid_token_user_not_found(client):
-    token = create_acess_token({'sub': 'naoexiste@example.com'})
+    token = create_access_token({'sub': 'naoexiste@example.com'})
 
     # Tentar acessar uma rota que exige autenticação
     response = client.delete(

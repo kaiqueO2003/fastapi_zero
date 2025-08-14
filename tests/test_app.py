@@ -19,4 +19,4 @@ def teste_get_token(client, user):
     token = response.json()
     assert response.status_code == HTTPStatus.OK
     assert token['token_type'] == 'Bearer'
-    assert 'acess_token' in token
+    assert 'access_token' in token

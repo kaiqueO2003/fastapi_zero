@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi_zero.database import get_session
 from fastapi_zero.models import User
@@ -16,17 +16,19 @@ from fastapi_zero.schemas import (
 from fastapi_zero.security import get_current_user, get_password_hash
 
 router = APIRouter(prefix='/users', tags=['users'])
-T_Session = Annotated[Session, Depends(get_session)]
+T_Session = Annotated[AsyncSession, Depends(get_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.get('/', status_code=HTTPStatus.OK, response_model=UserList)
-def read_users(
+async def read_users(
     session: T_Session,
     limit: int = 10,
     offset: int = 0,
 ):
-    users = session.scalars(select(User).limit(limit).offset(offset))
+    users = await session.scalars(
+        select(User).limit(limit).offset(offset)
+    )
     return {'users': users}
 
 
@@ -35,7 +37,7 @@ def read_users(
     status_code=HTTPStatus.OK,
     response_model=UserPublic,
 )
-def update_user(
+async def update_user(
     user_id: int,
     user: UserSchema,
     session: T_Session,
@@ -50,8 +52,8 @@ def update_user(
     current_user.username = user.username
     current_user.password = get_password_hash(user.password)
 
-    session.commit()
-    session.refresh(current_user)
+    await session.commit()
+    await session.refresh(current_user)
 
     return current_user
 
@@ -61,7 +63,7 @@ def update_user(
     status_code=HTTPStatus.OK,
     response_model=Message,
 )
-def delete_user(
+async def delete_user(
     user_id: int,
     session: T_Session,
     current_user: CurrentUser,
@@ -71,8 +73,8 @@ def delete_user(
             status_code=HTTPStatus.FORBIDDEN, detail='Sem permissão'
         )
 
-    session.delete(current_user)
-    session.commit()
+    await session.delete(current_user)
+    await session.commit()
 
     return {'message': 'user delete'}
 
@@ -82,8 +84,8 @@ def delete_user(
     status_code=HTTPStatus.CREATED,
     response_model=UserPublic,
 )
-def create_user(user: UserSchema, session: T_Session):
-    db_user = session.scalar(
+async def create_user(user: UserSchema, session: T_Session):
+    db_user = await session.scalar(
         select(User).where(
             (User.username == user.username)
             | (User.email == user.email)
@@ -110,8 +112,8 @@ def create_user(user: UserSchema, session: T_Session):
     )
 
     session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
+    await session.commit()
+    await session.refresh(db_user)
 
     return db_user
 
@@ -121,7 +123,7 @@ def create_user(user: UserSchema, session: T_Session):
     status_code=HTTPStatus.OK,
     response_model=UserPublic,
 )
-def read_user_by_id(
+async def read_user_by_id(
     user_id: int,
     session: T_Session,
     current_user: CurrentUser,  # Adiciona autenticação
@@ -131,7 +133,9 @@ def read_user_by_id(
             status_code=HTTPStatus.FORBIDDEN, detail='Sem permissão'
         )
 
-    user_db = session.scalar(select(User).where(User.id == user_id))
+    user_db = await session.scalar(
+        select(User).where(User.id == user_id)
+    )
     if not user_db:
         raise HTTPException(
             detail='Não encontrado', status_code=HTTPStatus.NOT_FOUND

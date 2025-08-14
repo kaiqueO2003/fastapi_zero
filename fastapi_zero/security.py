@@ -6,19 +6,33 @@ from fastapi import Depends, HTTPException
 from fastapi.security import (
     OAuth2PasswordBearer,
 )
-from jwt import decode, encode
-from jwt.exceptions import ExpiredSignatureError, PyJWTError
+from jwt import DecodeError, decode, encode
+from jwt.exceptions import ExpiredSignatureError
 from pwdlib import PasswordHash
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi_zero.database import get_session
 from fastapi_zero.models import User
 from fastapi_zero.settings import Settings
 
 pwd_context = PasswordHash.recommended()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl='auth/token', refreshUrl='auth/refresh'
+)
 settings = Settings()
+
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.now(tz=ZoneInfo('UTC')) + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+    to_encode.update({'exp': expire})
+    encoded_jwt = encode(
+        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
+    return encoded_jwt
 
 
 def get_password_hash(password: str):
@@ -29,23 +43,8 @@ def verify_password(plain_password: str, hashed_password: str):
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_acess_token(data: dict):
-    to_enconde = data.copy()
-
-    expire = datetime.now(tz=ZoneInfo('UTC')) + timedelta(
-        minutes=settings.ACESS_TOKEN_EXPIRE_MINUTES
-    )
-
-    to_enconde.update({'exp': expire})
-    encoded_jwt = encode(
-        to_enconde, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-    )
-
-    return encoded_jwt
-
-
-def get_current_user(
-    session: Session = Depends(get_session),
+async def get_current_user(
+    session: AsyncSession = Depends(get_session),
     token: str = Depends(oauth2_scheme),
 ):
     credentials_exception = HTTPException(
@@ -53,51 +52,29 @@ def get_current_user(
         detail='Could not validate credentials',
         headers={'WWW-Authenticate': 'Bearer'},
     )
+
     try:
-        playload = decode(
+        payload = decode(
             token,
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM],
         )
+        subject_email = payload.get('sub')
 
-        username: str = playload.get('sub')
-        if not username:
+        if not subject_email:
             raise credentials_exception
 
-    except PyJWTError:
+    except DecodeError:
         raise credentials_exception
 
     except ExpiredSignatureError:
         raise credentials_exception
 
-    user = session.scalar(select(User).where(User.email == username))
+    user = await session.scalar(
+        select(User).where(User.email == subject_email)
+    )
 
     if not user:
         raise credentials_exception
 
     return user
-
-
-def test_token_wrong_passwprd(client, user):
-    response = client.post(
-        '/auth/token',
-        data={'username': user.email, 'password': 'wrong_password'},
-    )
-    assert response.status_code == HTTPStatus.BAD_REQUEST
-    assert response.json() == {
-        'detail': 'Incorrect email or password'
-    }
-
-
-def test_token_inexistent_user(client):
-    response = client.post(
-        '/auth/token',
-        data={
-            'username': 'no_user@no_domain.com',
-            'password': 'testtest',
-        },
-    )
-    assert response.status_code == HTTPStatus.UNAUTHORIZED
-    assert response.json() == {
-        'detail': 'Incorrect email or password'
-    }

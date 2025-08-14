@@ -3,14 +3,14 @@ from http import HTTPStatus
 from jwt import decode
 
 from fastapi_zero.security import (
-    create_acess_token,
+    create_access_token,
     settings,
 )
 
 
 def test_jwt():
     data = {'sub': 'teste@test.com'}
-    token = create_acess_token(data)
+    token = create_access_token(data)
 
     result = decode(
         token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
